@@ -22,7 +22,7 @@ mac:
   hardenedRuntime: true
   gatekeeperAssess: false
   identity: "Connor Woolpert (25W36PNYUT)"
-  notarize: true
+  notarize: false
 
 dmg:
   background: assets/dmg-background.png

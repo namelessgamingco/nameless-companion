@@ -39,10 +39,21 @@ jobs:
       - name: Build macOS DMG
         env:
           CSC_KEYCHAIN: build.keychain
+        run: npx electron-builder --mac --publish never
+
+      - name: Notarize the app
+        env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: 25W36PNYUT
-        run: npx electron-builder --mac --publish never
+        run: |
+          echo "Submitting for notarization..."
+          xcrun notarytool submit dist/Nameless\ Poker-*-arm64.dmg \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "25W36PNYUT" \
+            --wait --timeout 30m
+          echo "Stapling notarization ticket..."
+          xcrun stapler staple dist/Nameless\ Poker-*-arm64.dmg
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
