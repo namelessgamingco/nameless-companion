@@ -51,7 +51,7 @@ jobs:
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "25W36PNYUT" \
-            --wait --timeout 30m
+            --wait --timeout 60m
           echo "Stapling notarization ticket..."
           xcrun stapler staple dist/Nameless\ Poker-*-arm64.dmg
 
