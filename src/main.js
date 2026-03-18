@@ -1,0 +1,456 @@
+// =============================================================================
+// main.js — Nameless Poker Companion · Electron Main Process
+// =============================================================================
+
+const {
+  app,
+  BrowserWindow,
+  globalShortcut,
+  Tray,
+  Menu,
+  nativeImage,
+  ipcMain,
+  screen,
+} = require("electron")
+const path = require("path")
+const fs = require("fs")
+const os = require("os")
+
+// =============================================================================
+// CONFIG
+// =============================================================================
+
+const APP_URL =
+  process.env.NAMELESS_URL ||
+  "https://namelesspoker.com/Play_Session"
+
+const HOTKEY = "Control+Space"
+
+const DEFAULT_WIDTH = 750
+const DEFAULT_HEIGHT = 800
+const MIN_WIDTH = 440
+const MIN_HEIGHT = 500
+
+const STATE_DIR = path.join(os.homedir(), ".nameless")
+const STATE_FILE = path.join(STATE_DIR, "window-state.json")
+
+// =============================================================================
+// WINDOW STATE PERSISTENCE
+// =============================================================================
+
+function loadWindowState() {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const data = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"))
+      const displays = screen.getAllDisplays()
+      const onScreen = displays.some((d) => {
+        const b = d.bounds
+        return (
+          data.x >= b.x - 100 &&
+          data.x < b.x + b.width + 100 &&
+          data.y >= b.y - 100 &&
+          data.y < b.y + b.height + 100
+        )
+      })
+      if (onScreen && data.width && data.height) return data
+    }
+  } catch {
+    // Corrupt or missing
+  }
+  return null
+}
+
+function saveWindowState(win) {
+  if (!win || win.isDestroyed()) return
+  try {
+    const bounds = win.getBounds()
+    if (!fs.existsSync(STATE_DIR)) {
+      fs.mkdirSync(STATE_DIR, { recursive: true })
+    }
+    fs.writeFileSync(STATE_FILE, JSON.stringify(bounds), "utf8")
+  } catch {
+    // Non-critical
+  }
+}
+
+// =============================================================================
+// CREATE WINDOW
+// =============================================================================
+
+let mainWindow = null
+let tray = null
+
+function createWindow() {
+  const saved = loadWindowState()
+
+  mainWindow = new BrowserWindow({
+    width: saved?.width || DEFAULT_WIDTH,
+    height: saved?.height || DEFAULT_HEIGHT,
+    x: saved?.x,
+    y: saved?.y,
+    minWidth: MIN_WIDTH,
+    minHeight: MIN_HEIGHT,
+
+    frame: false,
+    alwaysOnTop: true,
+    alwaysOnTopLevel: "floating",
+    transparent: process.platform === "darwin",
+    hasShadow: true,
+    skipTaskbar: true,
+
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+
+    backgroundColor: process.platform === "darwin" ? "#00000000" : "#0A0A12",
+    titleBarStyle: "hidden",
+    roundedCorners: true,
+    show: false,
+  })
+
+  mainWindow.loadURL(APP_URL)
+
+  // ── Inject CSS after page loads ──
+  mainWindow.webContents.on("did-finish-load", () => {
+    mainWindow.webContents.insertCSS(`
+      /* === Hide Streamlit framework chrome === */
+      header[data-testid="stHeader"],
+      #MainMenu,
+      footer,
+      .stDeployButton,
+      div[data-testid="stDecoration"],
+      div[data-testid="stToolbar"],
+      section[data-testid="stSidebar"],
+      button[data-testid="stSidebarCollapsedControl"],
+      [data-testid="collapsedControl"],
+      [data-testid="stSidebarNav"],
+      .stSidebar,
+      button[kind="header"],
+      .css-1544g2n {
+        display: none !important;
+      }
+
+      /* === Kill the sidebar arrow — nuclear option === */
+      div[data-testid="stSidebarCollapsedControl"],
+      [data-testid="collapsedControl"],
+      button[aria-label="Open sidebar navigation menu"],
+      .st-emotion-cache-arzcut,
+      [data-testid="stAppViewContainer"] > button:first-child {
+        display: none !important;
+      }
+      body > div > div > div > div > button[kind="header"],
+      [data-testid="stAppViewContainer"] button[kind="headerNoPadding"] {
+        display: none !important;
+      }
+
+      /* === Window background === */
+      html, body, [data-testid="stAppViewContainer"] {
+        background: #0A0A12 !important;
+        border-radius: 12px;
+      }
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      /* === Layout spacing === */
+      .main .block-container {
+        padding: 28px 8px 0 8px !important;
+        max-width: 100% !important;
+      }
+      .main {
+        padding: 0 !important;
+      }
+
+      .main > div {
+        padding-bottom: 0 !important;
+      }
+      [data-testid="stBottomBlockContainer"] {
+        display: none !important;
+      }
+
+      /* === Tighten gaps between elements === */
+      [data-testid="stVerticalBlock"] {
+        gap: 4px !important;
+      }
+
+      /* === Compact session stats bar === */
+      .session-bar {
+        padding: 8px 10px !important;
+        margin: 0 4px 4px 4px !important;
+        border-radius: 8px !important;
+      }
+      .session-stat-value {
+        font-size: 16px !important;
+      }
+      .session-stat-label {
+        font-size: 8px !important;
+      }
+      .session-stat-divider {
+        height: 24px !important;
+      }
+
+      /* === Premium scrollbar === */
+      ::-webkit-scrollbar { width: 4px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.08);
+        border-radius: 2px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255,255,255,0.15);
+      }
+    `)
+
+    // Dynamically resize iframe to match its React content + fix input widths
+    mainWindow.webContents.executeJavaScript(`
+      (function() {
+        function resizeIframe() {
+          var iframe = document.querySelector('iframe[title="poker_input.poker_input"]');
+          if (iframe) {
+            try {
+              var contentHeight = iframe.contentDocument.body.scrollHeight;
+              if (contentHeight > 100) {
+                iframe.style.height = contentHeight + 'px';
+              }
+              // Inject CSS into iframe to constrain inputs
+              if (!iframe.contentDocument.getElementById('nameless-iframe-fix')) {
+                var style = iframe.contentDocument.createElement('style');
+                style.id = 'nameless-iframe-fix';
+                style.textContent = 'input, textarea, select, [data-baseweb="input"] { max-width: 100% !important; box-sizing: border-box !important; } div { max-width: 100% !important; box-sizing: border-box !important; }';
+                iframe.contentDocument.head.appendChild(style);
+              }
+            } catch(e) {}
+          }
+        }
+        setInterval(resizeIframe, 500);
+        var observer = new MutationObserver(resizeIframe);
+        observer.observe(document.body, { childList: true, subtree: true });
+      })();
+    `)
+
+    mainWindow.webContents.send("window-focus-changed", mainWindow.isFocused())
+
+    if (!loadWindowState()) {
+      mainWindow.webContents.send("first-launch", true)
+    }
+  })
+
+  // ── Connection failure → auto-retry ──
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (_event, errorCode, errorDescription) => {
+      mainWindow.webContents.send("connection-error", {
+        code: errorCode,
+        message: errorDescription,
+      })
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.loadURL(APP_URL)
+        }
+      }, 3000)
+    }
+  )
+
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show()
+  })
+
+  mainWindow.on("focus", () => {
+    mainWindow.webContents.send("window-focus-changed", true)
+    mainWindow.setOpacity(1.0)
+  })
+
+  mainWindow.on("blur", () => {
+    mainWindow.webContents.send("window-focus-changed", false)
+    mainWindow.setOpacity(0.6)
+  })
+
+  let saveTimer = null
+  const debouncedSave = () => {
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => saveWindowState(mainWindow), 500)
+  }
+  mainWindow.on("move", debouncedSave)
+  mainWindow.on("resize", debouncedSave)
+
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    const appOrigin = new URL(APP_URL).origin
+    if (!url.startsWith(appOrigin)) {
+      event.preventDefault()
+    }
+  })
+
+  mainWindow.webContents.setWindowOpenHandler(() => {
+    return { action: "deny" }
+  })
+
+  // Cmd+W hides window (reopen from tray), Cmd+Q quits
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if ((input.meta || input.control) && input.key === "w") {
+      mainWindow.hide()
+      event.preventDefault()
+    }
+    if ((input.meta || input.control) && input.key === "q") {
+      app.quit()
+    }
+  })
+
+  mainWindow.on("closed", () => {
+    mainWindow = null
+  })
+}
+
+// =============================================================================
+// GLOBAL HOTKEY
+// =============================================================================
+
+function registerHotkey() {
+  const success = globalShortcut.register(HOTKEY, toggleFocus)
+  if (!success) {
+    console.error("Failed to register hotkey: " + HOTKEY)
+  }
+}
+
+function toggleFocus() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow()
+    return
+  }
+
+  if (mainWindow.isFocused()) {
+    if (process.platform === "darwin") {
+      mainWindow.blur()
+    } else {
+      mainWindow.blur()
+      mainWindow.minimize()
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.restore()
+        }
+      }, 50)
+    }
+  } else {
+    if (process.platform === "darwin") {
+      app.show()
+    }
+    mainWindow.show()
+    mainWindow.focus()
+  }
+}
+
+// =============================================================================
+// SYSTEM TRAY
+// =============================================================================
+
+function createTray() {
+  const iconPath = path.join(__dirname, "..", "assets", "tray-icon.png")
+  let trayIcon
+
+  if (fs.existsSync(iconPath)) {
+    trayIcon = nativeImage
+      .createFromPath(iconPath)
+      .resize({ width: 18, height: 18 })
+    if (process.platform === "darwin") {
+      trayIcon.setTemplateImage(true)
+    }
+  } else {
+    const mainIconPath = path.join(__dirname, "..", "assets", "icon.png")
+    if (fs.existsSync(mainIconPath)) {
+      trayIcon = nativeImage
+        .createFromPath(mainIconPath)
+        .resize({ width: 18, height: 18 })
+      if (process.platform === "darwin") {
+        trayIcon.setTemplateImage(true)
+      }
+    } else {
+      trayIcon = nativeImage.createEmpty()
+    }
+  }
+
+  tray = new Tray(trayIcon)
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Show / Hide",
+      click: () => {
+        if (!mainWindow || mainWindow.isDestroyed()) {
+          createWindow()
+        } else if (mainWindow.isVisible()) {
+          mainWindow.hide()
+        } else {
+          mainWindow.show()
+          mainWindow.focus()
+        }
+      },
+    },
+    { type: "separator" },
+    { label: "Hotkey: Ctrl+Space", enabled: false },
+    { type: "separator" },
+    { label: "Quit Nameless", click: () => app.quit() },
+  ])
+
+  tray.setToolTip("Nameless Poker")
+  tray.setContextMenu(contextMenu)
+
+  tray.on("click", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      createWindow()
+    } else {
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+}
+
+// =============================================================================
+// IPC
+// =============================================================================
+
+ipcMain.handle("get-platform", () => ({
+  platform: process.platform,
+  hotkeyDisplay: "Ctrl + Space",
+  hotkeyRaw: HOTKEY,
+}))
+
+// =============================================================================
+// APP LIFECYCLE
+// =============================================================================
+
+if (process.platform === "darwin") {
+  app.dock?.hide()
+}
+
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+} else {
+  app.on("second-instance", () => {
+    if (mainWindow) {
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+}
+
+app.whenReady().then(() => {
+  createWindow()
+  createTray()
+  registerHotkey()
+})
+
+app.on("window-all-closed", () => {})
+
+app.on("activate", () => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow()
+  }
+})
+
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll()
+  if (mainWindow) saveWindowState(mainWindow)
+})

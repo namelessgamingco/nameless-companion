@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.dmg
+*.exe
+*.msi
+*.AppImage
+.DS_Store
+Thumbs.db
+build.log
+certificate.p12
+certificate-base64.txt

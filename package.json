@@ -1,0 +1,21 @@
+{
+  "name": "nameless-companion",
+  "version": "1.0.0",
+  "description": "Nameless Poker — Floating Companion Window",
+  "main": "src/main.js",
+  "author": "Nameless Gaming",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "NAMELESS_URL=http://localhost:8501/Play_Session electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}
