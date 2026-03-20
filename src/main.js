@@ -442,6 +442,18 @@ function createTray() {
 // IPC
 // =============================================================================
 
+ipcMain.on("window-minimize", () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.minimize()
+  }
+})
+
+ipcMain.on("window-hide", () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.hide()
+  }
+})
+
 ipcMain.handle("get-platform", () => ({
   platform: process.platform,
   hotkeyDisplay: "Ctrl + Space",

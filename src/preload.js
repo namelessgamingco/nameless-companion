@@ -15,6 +15,8 @@ const { contextBridge, ipcRenderer } = require("electron")
 contextBridge.exposeInMainWorld("namelessCompanion", {
   isElectron: true,
   getPlatform: () => ipcRenderer.invoke("get-platform"),
+  minimizeWindow: () => ipcRenderer.send("window-minimize"),
+  hideWindow: () => ipcRenderer.send("window-hide"),
 
   onFocusChange: (callback) => {
     const handler = (_event, isFocused) => callback(isFocused)
@@ -313,16 +315,11 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   const minimizeBtn = makeBtn("─", "rgba(255,255,255,0.1)", () => {
-    window.namelessCompanion?.getPlatform?.().then(() => {
-      // Hide to tray
-      const { ipcRenderer: ipc } = require("electron")
-    }).catch(() => {})
-    // Fallback: just blur to return focus
-    window.blur()
+    window.namelessCompanion?.minimizeWindow?.()
   })
 
   const closeBtn = makeBtn("✕", "rgba(255,68,68,0.3)", () => {
-    window.close()
+    window.namelessCompanion?.hideWindow?.()
   })
 
   controls.appendChild(minimizeBtn)
