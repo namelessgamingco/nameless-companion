@@ -64,13 +64,23 @@ window.addEventListener("DOMContentLoaded", () => {
     .nameless-electron body {
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 12px;
-      transition: border-color 0s;
+      transition: border-color 0.2s ease;
     }
     .nameless-electron.window-active body {
       border-color: #4BA3FF;
     }
     .nameless-electron.window-inactive body {
-      border-color: rgba(255, 255, 255, 0.10);
+      border-color: rgba(255, 255, 255, 0.06);
+    }
+
+    /* Subtle dim when inactive — CSS only, no window opacity change */
+    .nameless-electron.window-inactive [data-testid="stAppViewContainer"] {
+      opacity: 0.7;
+      transition: opacity 0.2s ease;
+    }
+    .nameless-electron.window-active [data-testid="stAppViewContainer"] {
+      opacity: 1;
+      transition: opacity 0.2s ease;
     }
 
     /* ================================================================

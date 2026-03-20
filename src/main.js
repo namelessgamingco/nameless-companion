@@ -114,124 +114,139 @@ function createWindow() {
   mainWindow.loadURL(APP_URL)
 
   // ── Inject CSS after page loads ──
+  // CRITICAL: We delay CSS injection to let Streamlit fully initialize its
+  // session and component communication before we modify the DOM. Using
+  // visibility:hidden instead of display:none for sidebar keeps Streamlit's
+  // initialization intact (SessionInfo, component bridge, etc).
   mainWindow.webContents.on("did-finish-load", () => {
-    mainWindow.webContents.insertCSS(`
-      /* === Hide Streamlit framework chrome === */
-      header[data-testid="stHeader"],
-      #MainMenu,
-      footer,
-      .stDeployButton,
-      div[data-testid="stDecoration"],
-      div[data-testid="stToolbar"],
-      section[data-testid="stSidebar"],
-      button[data-testid="stSidebarCollapsedControl"],
-      [data-testid="collapsedControl"],
-      [data-testid="stSidebarNav"],
-      .stSidebar,
-      button[kind="header"],
-      .css-1544g2n {
-        display: none !important;
-      }
+    // Wait for Streamlit to fully initialize before hiding chrome
+    setTimeout(() => {
+      if (!mainWindow || mainWindow.isDestroyed()) return
 
-      /* === Kill the sidebar arrow — nuclear option === */
-      div[data-testid="stSidebarCollapsedControl"],
-      [data-testid="collapsedControl"],
-      button[aria-label="Open sidebar navigation menu"],
-      .st-emotion-cache-arzcut,
-      [data-testid="stAppViewContainer"] > button:first-child {
-        display: none !important;
-      }
-      body > div > div > div > div > button[kind="header"],
-      [data-testid="stAppViewContainer"] button[kind="headerNoPadding"] {
-        display: none !important;
-      }
-
-      /* === Window background === */
-      html, body, [data-testid="stAppViewContainer"] {
-        background: #0A0A12 !important;
-        border-radius: 12px;
-      }
-      html, body {
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-
-      /* === Layout spacing === */
-      .main .block-container {
-        padding: 28px 8px 0 8px !important;
-        max-width: 100% !important;
-      }
-      .main {
-        padding: 0 !important;
-      }
-
-      .main > div {
-        padding-bottom: 0 !important;
-      }
-      [data-testid="stBottomBlockContainer"] {
-        display: none !important;
-      }
-
-      /* === Tighten gaps between elements === */
-      [data-testid="stVerticalBlock"] {
-        gap: 4px !important;
-      }
-
-      /* === Compact session stats bar === */
-      .session-bar {
-        padding: 8px 10px !important;
-        margin: 0 4px 4px 4px !important;
-        border-radius: 8px !important;
-      }
-      .session-stat-value {
-        font-size: 16px !important;
-      }
-      .session-stat-label {
-        font-size: 8px !important;
-      }
-      .session-stat-divider {
-        height: 24px !important;
-      }
-
-      /* === Premium scrollbar === */
-      ::-webkit-scrollbar { width: 4px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,0.08);
-        border-radius: 2px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: rgba(255,255,255,0.15);
-      }
-    `)
-
-    // Dynamically resize iframe to match its React content + fix input widths
-    mainWindow.webContents.executeJavaScript(`
-      (function() {
-        function resizeIframe() {
-          var iframe = document.querySelector('iframe[title="poker_input.poker_input"]');
-          if (iframe) {
-            try {
-              var contentHeight = iframe.contentDocument.body.scrollHeight;
-              if (contentHeight > 100) {
-                iframe.style.height = contentHeight + 'px';
-              }
-              // Inject CSS into iframe to constrain inputs
-              if (!iframe.contentDocument.getElementById('nameless-iframe-fix')) {
-                var style = iframe.contentDocument.createElement('style');
-                style.id = 'nameless-iframe-fix';
-                style.textContent = 'input, textarea, select, [data-baseweb="input"] { max-width: 100% !important; box-sizing: border-box !important; } div { max-width: 100% !important; box-sizing: border-box !important; }';
-                iframe.contentDocument.head.appendChild(style);
-              }
-            } catch(e) {}
-          }
+      mainWindow.webContents.insertCSS(`
+        /* === Hide Streamlit framework chrome === */
+        /* IMPORTANT: Use visibility/size collapse instead of display:none  */
+        /* display:none breaks Streamlit's SessionInfo initialization       */
+        header[data-testid="stHeader"],
+        #MainMenu,
+        footer,
+        .stDeployButton,
+        div[data-testid="stDecoration"],
+        div[data-testid="stToolbar"] {
+          display: none !important;
         }
-        setInterval(resizeIframe, 500);
-        var observer = new MutationObserver(resizeIframe);
-        observer.observe(document.body, { childList: true, subtree: true });
-      })();
-    `)
 
+        /* Sidebar: hide visually but keep in DOM for Streamlit init */
+        section[data-testid="stSidebar"],
+        .stSidebar {
+          visibility: hidden !important;
+          position: absolute !important;
+          width: 0 !important;
+          height: 0 !important;
+          overflow: hidden !important;
+          pointer-events: none !important;
+        }
+
+        /* Sidebar toggle buttons */
+        button[data-testid="stSidebarCollapsedControl"],
+        [data-testid="collapsedControl"],
+        [data-testid="stSidebarNav"],
+        button[kind="header"],
+        .css-1544g2n,
+        button[aria-label="Open sidebar navigation menu"],
+        .st-emotion-cache-arzcut,
+        [data-testid="stAppViewContainer"] > button:first-child,
+        body > div > div > div > div > button[kind="header"],
+        [data-testid="stAppViewContainer"] button[kind="headerNoPadding"] {
+          visibility: hidden !important;
+          position: absolute !important;
+          width: 0 !important;
+          height: 0 !important;
+          pointer-events: none !important;
+        }
+
+        /* === Window background === */
+        html, body, [data-testid="stAppViewContainer"] {
+          background: #0A0A12 !important;
+          border-radius: 12px;
+        }
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+
+        /* === Layout spacing === */
+        .main .block-container {
+          padding: 28px 8px 0 8px !important;
+          max-width: 100% !important;
+        }
+        .main {
+          padding: 0 !important;
+        }
+
+        .main > div {
+          padding-bottom: 0 !important;
+        }
+        [data-testid="stBottomBlockContainer"] {
+          visibility: hidden !important;
+          height: 0 !important;
+          overflow: hidden !important;
+        }
+
+        /* === Tighten gaps between elements === */
+        [data-testid="stVerticalBlock"] {
+          gap: 4px !important;
+        }
+
+        /* === Compact session stats bar === */
+        .session-bar {
+          padding: 8px 10px !important;
+          margin: 0 4px 4px 4px !important;
+          border-radius: 8px !important;
+        }
+        .session-stat-value {
+          font-size: 16px !important;
+        }
+        .session-stat-label {
+          font-size: 8px !important;
+        }
+        .session-stat-divider {
+          height: 24px !important;
+        }
+
+        /* === Premium scrollbar === */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.08);
+          border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: rgba(255,255,255,0.15);
+        }
+      `)
+
+      // Dynamically resize iframe — gentle approach, no MutationObserver
+      // Only resize, don't inject CSS into iframe (can break component comms)
+      mainWindow.webContents.executeJavaScript(`
+        (function() {
+          function resizeIframe() {
+            var iframe = document.querySelector('iframe[title="poker_input.poker_input"]');
+            if (iframe) {
+              try {
+                var contentHeight = iframe.contentDocument.body.scrollHeight;
+                if (contentHeight > 100) {
+                  iframe.style.height = contentHeight + 'px';
+                }
+              } catch(e) {}
+            }
+          }
+          setInterval(resizeIframe, 1000);
+        })();
+      `)
+    }, 2000) // 2 second delay — lets Streamlit SessionInfo fully initialize
+
+    // These can fire immediately — they don't affect Streamlit init
     mainWindow.webContents.send("window-focus-changed", mainWindow.isFocused())
 
     if (!loadWindowState()) {
@@ -259,14 +274,14 @@ function createWindow() {
     mainWindow.show()
   })
 
+  // Focus/blur: send state to renderer for CSS border change only
+  // NO opacity change — it causes End Session button flickering
   mainWindow.on("focus", () => {
     mainWindow.webContents.send("window-focus-changed", true)
-    mainWindow.setOpacity(1.0)
   })
 
   mainWindow.on("blur", () => {
     mainWindow.webContents.send("window-focus-changed", false)
-    mainWindow.setOpacity(0.6)
   })
 
   let saveTimer = null
@@ -322,18 +337,15 @@ function toggleFocus() {
   }
 
   if (mainWindow.isFocused()) {
+    // Return focus to previous app
     if (process.platform === "darwin") {
       mainWindow.blur()
     } else {
+      // Windows: just blur — the OS returns focus to the previous window
       mainWindow.blur()
-      mainWindow.minimize()
-      setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.restore()
-        }
-      }, 50)
     }
   } else {
+    // Bring Nameless to front
     if (process.platform === "darwin") {
       app.show()
     }
