@@ -125,32 +125,33 @@ window.addEventListener("DOMContentLoaded", () => {
 
     @keyframes badgeBreathe {
       0%, 100% {
-        opacity: 0.7;
+        opacity: 0.85;
         transform: translateX(-50%) scale(1);
       }
       50% {
         opacity: 1;
-        transform: translateX(-50%) scale(1.03);
+        transform: translateX(-50%) scale(1.04);
       }
     }
 
     .nameless-hotkey-badge .badge-hotkey {
       font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
-      font-size: 22px;
+      font-size: 26px;
       font-weight: 800;
-      color: #4BA3FF;
+      color: #6BB8FF;
       letter-spacing: 0.05em;
       line-height: 1;
+      text-shadow: 0 0 12px rgba(75, 163, 255, 0.4);
     }
 
     .nameless-hotkey-badge .badge-label {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: 11px;
-      font-weight: 600;
-      color: rgba(255, 255, 255, 0.45);
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.65);
       text-transform: uppercase;
       letter-spacing: 0.12em;
-      margin-top: 5px;
+      margin-top: 6px;
     }
 
     /* ================================================================
@@ -265,8 +266,68 @@ window.addEventListener("DOMContentLoaded", () => {
     -webkit-app-region: drag;
     z-index: 99998;
     pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 4px;
   `
   document.body.appendChild(dragBar)
+
+  // ── Window control buttons (close + minimize) ──
+  const controls = document.createElement("div")
+  controls.style.cssText = `
+    display: flex;
+    gap: 6px;
+    -webkit-app-region: no-drag;
+    padding: 4px;
+  `
+
+  const makeBtn = (label, hoverColor, onClick) => {
+    const btn = document.createElement("button")
+    btn.textContent = label
+    btn.style.cssText = `
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: rgba(255,255,255,0.35);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-app-region: no-drag;
+      transition: background 0.15s, color 0.15s;
+    `
+    btn.addEventListener("mouseenter", () => {
+      btn.style.background = hoverColor
+      btn.style.color = "#ffffff"
+    })
+    btn.addEventListener("mouseleave", () => {
+      btn.style.background = "transparent"
+      btn.style.color = "rgba(255,255,255,0.35)"
+    })
+    btn.addEventListener("click", onClick)
+    return btn
+  }
+
+  const minimizeBtn = makeBtn("─", "rgba(255,255,255,0.1)", () => {
+    window.namelessCompanion?.getPlatform?.().then(() => {
+      // Hide to tray
+      const { ipcRenderer: ipc } = require("electron")
+    }).catch(() => {})
+    // Fallback: just blur to return focus
+    window.blur()
+  })
+
+  const closeBtn = makeBtn("✕", "rgba(255,68,68,0.3)", () => {
+    window.close()
+  })
+
+  controls.appendChild(minimizeBtn)
+  controls.appendChild(closeBtn)
+  dragBar.appendChild(controls)
 
   // ── Focus / Blur state management ──
   ipcRenderer.on("window-focus-changed", (_event, isFocused) => {
