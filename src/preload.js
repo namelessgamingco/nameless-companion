@@ -315,11 +315,11 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   const minimizeBtn = makeBtn("─", "rgba(255,255,255,0.1)", () => {
-    window.namelessCompanion?.minimizeWindow?.()
+    ipcRenderer.send("window-minimize")
   })
 
   const closeBtn = makeBtn("✕", "rgba(255,68,68,0.3)", () => {
-    window.namelessCompanion?.hideWindow?.()
+    ipcRenderer.send("window-hide")
   })
 
   controls.appendChild(minimizeBtn)

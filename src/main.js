@@ -121,21 +121,59 @@ function createWindow() {
   mainWindow.webContents.on("did-finish-load", () => {
     // Inject dark theme IMMEDIATELY — covers auth/login screen
     mainWindow.webContents.insertCSS(`
-      html, body, [data-testid="stAppViewContainer"], .stApp {
+      /* Dark background everywhere */
+      html, body, [data-testid="stAppViewContainer"], .stApp,
+      [data-testid="stApp"], .main, .block-container {
         background: #0A0A12 !important;
         color: #E0E0E0 !important;
       }
-      input, [data-baseweb="input"] input {
+
+      /* ALL text elements */
+      label, .stMarkdown, .stMarkdown p, h1, h2, h3, h4, p, span, div,
+      .stTextInput label, .stTextInput span,
+      [data-testid="stMarkdownContainer"], [data-testid="stMarkdownContainer"] p {
+        color: #E0E0E0 !important;
+      }
+
+      /* Input fields — nuclear approach for Streamlit's deep nesting */
+      input, textarea, select,
+      [data-baseweb="input"], [data-baseweb="input"] input,
+      [data-baseweb="base-input"], [data-baseweb="base-input"] input,
+      .stTextInput input, .stTextInput div[data-baseweb] input,
+      div[class*="InputContainer"] input,
+      div[class*="textInput"] input {
         color: #E0E0E0 !important;
         background: #1a1a28 !important;
         border-color: rgba(255,255,255,0.15) !important;
+        -webkit-text-fill-color: #E0E0E0 !important;
+        caret-color: #E0E0E0 !important;
       }
-      label, .stMarkdown, .stMarkdown p, h1, h2, h3, h4, p, span, div {
-        color: #E0E0E0 !important;
+
+      /* Input wrapper/container backgrounds */
+      [data-baseweb="input"], [data-baseweb="base-input"],
+      .stTextInput > div, .stTextInput > div > div {
+        background: #1a1a28 !important;
+        border-color: rgba(255,255,255,0.15) !important;
       }
-      button[kind="primary"], button[data-testid="baseButton-primary"] {
-        background: #4BA3FF !important;
-        color: #0A0A12 !important;
+
+      /* Placeholder text */
+      input::placeholder, textarea::placeholder {
+        color: rgba(255,255,255,0.3) !important;
+        -webkit-text-fill-color: rgba(255,255,255,0.3) !important;
+      }
+
+      /* Password toggle eye icon */
+      button[aria-label*="password"], button[aria-label*="Password"],
+      .stTextInput button {
+        color: rgba(255,255,255,0.5) !important;
+      }
+
+      /* Primary buttons */
+      button[kind="primary"], button[data-testid="baseButton-primary"],
+      .stButton > button {
+        background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+        color: white !important;
+        -webkit-text-fill-color: white !important;
       }
     `)
 
