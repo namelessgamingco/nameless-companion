@@ -119,6 +119,26 @@ function createWindow() {
   // visibility:hidden instead of display:none for sidebar keeps Streamlit's
   // initialization intact (SessionInfo, component bridge, etc).
   mainWindow.webContents.on("did-finish-load", () => {
+    // Inject dark theme IMMEDIATELY — covers auth/login screen
+    mainWindow.webContents.insertCSS(`
+      html, body, [data-testid="stAppViewContainer"], .stApp {
+        background: #0A0A12 !important;
+        color: #E0E0E0 !important;
+      }
+      input, [data-baseweb="input"] input {
+        color: #E0E0E0 !important;
+        background: #1a1a28 !important;
+        border-color: rgba(255,255,255,0.15) !important;
+      }
+      label, .stMarkdown, .stMarkdown p, h1, h2, h3, h4, p, span, div {
+        color: #E0E0E0 !important;
+      }
+      button[kind="primary"], button[data-testid="baseButton-primary"] {
+        background: #4BA3FF !important;
+        color: #0A0A12 !important;
+      }
+    `)
+
     // Wait for Streamlit to fully initialize before hiding chrome
     setTimeout(() => {
       if (!mainWindow || mainWindow.isDestroyed()) return
