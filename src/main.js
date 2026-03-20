@@ -156,6 +156,41 @@ function createWindow() {
         border-color: rgba(255,255,255,0.15) !important;
       }
 
+      /* Select / dropdown elements */
+      select, [data-baseweb="select"],
+      [data-baseweb="select"] > div,
+      [data-baseweb="select"] input,
+      .stSelectbox > div, .stSelectbox > div > div,
+      .stSelectbox [data-baseweb="select"] > div,
+      [role="listbox"], [role="option"],
+      div[data-baseweb="popover"] {
+        background: #1a1a28 !important;
+        color: #E0E0E0 !important;
+        -webkit-text-fill-color: #E0E0E0 !important;
+        border-color: rgba(255,255,255,0.15) !important;
+      }
+
+      /* Dropdown menu items */
+      [role="option"], [data-baseweb="menu"] li,
+      [data-baseweb="menu"], ul[role="listbox"],
+      ul[role="listbox"] li {
+        background: #1a1a28 !important;
+        color: #E0E0E0 !important;
+        -webkit-text-fill-color: #E0E0E0 !important;
+      }
+      [role="option"]:hover, [data-baseweb="menu"] li:hover,
+      ul[role="listbox"] li:hover {
+        background: #2a2a3a !important;
+      }
+
+      /* Number input (buy-in field) */
+      .stNumberInput input, .stNumberInput div {
+        background: #1a1a28 !important;
+        color: #E0E0E0 !important;
+        -webkit-text-fill-color: #E0E0E0 !important;
+        border-color: rgba(255,255,255,0.15) !important;
+      }
+
       /* Placeholder text */
       input::placeholder, textarea::placeholder {
         color: rgba(255,255,255,0.3) !important;
