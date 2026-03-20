@@ -96,7 +96,7 @@ function createWindow() {
     alwaysOnTopLevel: "floating",
     transparent: process.platform === "darwin",
     hasShadow: true,
-    skipTaskbar: true,
+    skipTaskbar: process.platform === "darwin",
 
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
